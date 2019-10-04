@@ -36,22 +36,13 @@ class preloadGame extends Phaser.Scene {
     preload(){
         this.load.image('sky', 'assets/sky.png');
         this.load.image('ground', 'assets/ground.png');
-        this.load.spritesheet("mountain", "assets/mountains.png", {
-            frameWidth: 500,
-            frameHeight: 500
-        });
-        this.load.spritesheet("cloud", "assets/clouds.png", {
-            frameWidth: 75,
-            frameHeight: 50
-        });
-        this.load.spritesheet("storm", "assets/storm.png", {
-            frameWidth: 100,
-            frameHeight: 100
-        });
-        this.load.spritesheet("meteor", "assets/meteor.png", {
-            frameWidth: 50,
-            frameHeight: 50
-        });
+        this.load.spritesheet("mountain", "assets/mountains.png", { frameWidth: 500, frameHeight: 500 });
+        this.load.spritesheet("cloud", "assets/clouds.png", { frameWidth: 75, frameHeight: 50 });
+        this.load.spritesheet("storm", "assets/storm.png", { frameWidth: 100, frameHeight: 100 });
+        this.load.spritesheet("meteor", "assets/meteor.png", { frameWidth: 50, frameHeight: 50 });
+        this.load.spritesheet("alien", "assets/alien.png", { frameWidth: 30, frameHeight: 50 });
+        this.load.spritesheet("water", "assets/water.png", { frameWidth: 30, frameHeight: 30 });
+        this.load.spritesheet("scan", "assets/scan.png", { frameWidth: 30, frameHeight: 18 });
         this.load.spritesheet('rover', 'assets/rover.png', { frameWidth: 42, frameHeight: 31 });
     }
 
@@ -77,7 +68,7 @@ class preloadGame extends Phaser.Scene {
                 start: 0,
                 end: 1
             }),
-            frameRate: 8,
+            frameRate: 10,
             repeat: -1
         });
         this.anims.create({
@@ -95,6 +86,32 @@ class preloadGame extends Phaser.Scene {
             frameRate: 10,
             repeat: -1
         });
+        this.anims.create({
+            key: 'welcome',
+            frames: this.anims.generateFrameNumbers('alien', {
+                start: 0,
+                end: 2
+            }),
+            frameRate: 5
+        });
+        this.anims.create({
+            key: 'flow',
+            frames: this.anims.generateFrameNumbers('water', {
+                start: 0,
+                end: 2
+            }),
+            frameRate: 4,
+            repeat: -1
+        });
+        this.anims.create({
+            key: 'scan',
+            frames: this.anims.generateFrameNumbers('scan', {
+                start: 0,
+                end: 2
+            }),
+            frameRate: 5,
+            repeat: -1
+        });
 
         this.scene.start("PlayGame");
     }
@@ -106,6 +123,14 @@ class playGame extends Phaser.Scene{
         super("PlayGame");
     }
     create(){
+        this.score = 0.0;
+        this.lives = gameOptions.lives;
+        this.movingGroup = [];
+        this.scoreText = this.add.text(16, 16, `score: ${this.score}`, { fontSize: '32px', fill: '#000' });
+        this.scoreText.setDepth(10);
+        this.livesText = this.add.text(1100, 16, `lives: ${this.lives}`, { fontSize: '32px', fill: '#000' });
+        this.livesText.setDepth(10);
+
         this.sky = this.physics.add.staticGroup();
         this.sky.create(600, 400, 'sky').scaleX = 2;
         this.platforms = this.physics.add.staticGroup();
@@ -125,18 +150,42 @@ class playGame extends Phaser.Scene{
         this.player.setDepth(4);
         this.player.setCollideWorldBounds(true);
         this.player.body.setGravityY(gameOptions.playerGravity);
-        this.platformCollider = this.physics.add.collider(this.player, this.platforms);
+        this.physics.add.collider(this.player, this.platforms);
         this.cursors = this.input.keyboard.createCursorKeys();
+        this.scan = null;
+        this.scanButton = this.cursors.space;
+
+        this.scanButton.on('down', () => {
+            this.scan = this.physics.add.sprite(this.player.x, this.player.y + 50, 'scan');
+            this.scan.anims.play('scan');
+            this.scan.setDepth(5);
+            this.scanWater();
+        });
+        this.scanButton.on('up', () => {
+            if (this.scan !== null) {
+                this.scan.destroy();
+            }
+        });
+
+        //TODO alien
+        this.alienGroup = this.add.group();
+        this.movingGroup.push(this.alienGroup);
+        this.addAlien();
 
         //TODO storm
         this.stormGroup = this.add.group();
-
+        this.movingGroup.push(this.stormGroup);
         this.addStorm();
 
         //TODO meteor
         this.meteorGroup = this.add.group();
-
+        this.movingGroup.push(this.meteorGroup);
         this.addMeteor();
+
+        //TODO water
+        this.waterGroup = this.add.group();
+        this.movingGroup.push(this.waterGroup);
+        this.addWater();
     }
 
     update() {
@@ -145,7 +194,6 @@ class playGame extends Phaser.Scene{
         } else if (this.cursors.left.isDown) {
             this.moveBackward();
         } else {
-            // player.setVelocityX(0);
             this.player.anims.play('stop');
         }
 
@@ -155,6 +203,8 @@ class playGame extends Phaser.Scene{
     }
 
     moveForward() {
+        this.score += 0.1;
+        this.scoreText.text =`score: ${this.score.toFixed()}`;
         this.player.anims.play('drive', true);
         this.mountainGroup.getChildren().forEach(function (mountains) {
             mountains.x += -1 - (mountains.depth / 5);
@@ -163,15 +213,57 @@ class playGame extends Phaser.Scene{
             cloud.x += -0.3 - (cloud.depth / 5);
         });
         this.recyclingMountains();
-        this.stormGroup.getChildren().forEach(function (storm) {
-            storm.x += -2;
+        this.recyclingClouds();
+        this.movingGroup.forEach(group => {
+            group.getChildren().forEach(item => {
+                item.x -= 2;
+            });
         });
-        this.meteorGroup.getChildren().forEach(function (meteor) {
-            meteor.x += -2;
+        this.alienGroup.getChildren().forEach(alien => {
+            if ((alien.x - this.player.x <= 200) && !alien.anims.isPlaying) {
+                alien.anims.play('welcome');
+            }
         });
     }
 
+    scanWater() {
+        if(this.scan.anims.isPlaying) {
+            this.waterGroup.getChildren().forEach(water => {
+                if (Math.abs(water.x - this.player.x) <= 50) {
+                    setTimeout(() => {
+                        this.waterGroup.killAndHide(water);
+                        this.waterGroup.remove(water);
+                        this.score += 10;
+                        this.scoreText.text = `score: ${this.score.toFixed()}`;
+                    }, 500);
+                }
+            });
+        }
+    }
+
     moveBackward() {
+    }
+
+    addWater() {
+        let water = this.physics.add.sprite(700, 550, 'water');
+        water.setDepth(4);
+        water.setScale(2);
+        water.anims.play('flow');
+        this.waterGroup.add(water);
+    }
+
+    addAlien() {
+        let alien = this.physics.add.sprite(600, 490, 'alien');
+        alien.setDepth(4);
+        alien.body.setGravityY(gameOptions.playerGravity);
+        this.physics.add.collider(alien, this.platforms);
+        this.physics.add.collider(alien, this.player, () => {
+            this.score += 1;
+            this.alienGroup.killAndHide(alien);
+            this.alienGroup.remove(alien);
+            alien.destroy();
+        });
+        this.alienGroup.add(alien);
     }
 
     addStorm() {
@@ -197,13 +289,16 @@ class playGame extends Phaser.Scene{
         this.meteorGroup.add(meteor);
         this.physics.add.collider(this.player, meteor, () => {
             meteor.anims.play('explode');
-            this.roverHit()
+            this.roverHit();
         });
-        this.physics.add.collider(this.platforms, meteor, function () {
+        this.physics.add.collider(this.platforms, meteor, () => {
             meteor.setVelocityX(0);
             meteor.anims.play('explode');
-            setTimeout(() => meteor.destroy(), 100);
-        }, function () {}, this);
+            setTimeout(() => {
+                this.meteorGroup.killAndHide(meteor);
+                this.meteorGroup.remove(meteor);
+            }, 100);
+        });
     }
 
     addMountains() {
@@ -212,7 +307,7 @@ class playGame extends Phaser.Scene{
             let mountain = this.physics.add.sprite(rightmostMountain + Phaser.Math.Between(100, 350), game.config.height - Phaser.Math.Between(0, 150), "mountain");
             mountain.setOrigin(0.5, 1);
             this.mountainGroup.add(mountain);
-            if(Phaser.Math.Between(0, 1)){
+            if(Phaser.Math.Between(0, 1)) {
                 mountain.setDepth(2);
             }
             mountain.setFrame(Phaser.Math.Between(0, 3));
@@ -229,6 +324,29 @@ class playGame extends Phaser.Scene{
                 mountain.setFrame(Phaser.Math.Between(0, 3));
                 if(Phaser.Math.Between(0, 1)){
                     mountain.setDepth(1);
+                }
+            }
+        }, this);
+    }
+
+    getRightmostMountain() {
+        let rightmostMountain = -200;
+        this.mountainGroup.getChildren().forEach(function(mountain){
+            rightmostMountain = Math.max(rightmostMountain, mountain.x);
+        });
+        return rightmostMountain;
+    }
+
+    recyclingClouds() {
+        this.cloudGroup.getChildren().forEach((cloud) => {
+            if(cloud.x < - cloud.displayWidth) {
+                let rightmostCloud = this.getRightmostCloud();
+                cloud.x = rightmostCloud + Phaser.Math.Between(100, 350);
+                cloud.y = game.config.height - Phaser.Math.Between(350, 650);
+                cloud.setFrame(Phaser.Math.Between(0, 3));
+                cloud.setScale(2);
+                if(Phaser.Math.Between(0, 1)) {
+                    cloud.setDepth(1);
                 }
             }
         }, this);
@@ -258,20 +376,13 @@ class playGame extends Phaser.Scene{
     }
 
     roverHit() {
-        gameOptions.lives -= 1;
-        if (gameOptions.lives <= 0) {
+        this.lives -= 1;
+        this.livesText.text = `lives: ${this.lives}`;
+        if (this.lives <= 0) {
             let text = this.add.text(667, 325, 'Game Over', { fontSize: '64px', fill: '#e0e1c3' });
             text.setDepth(100);
             text.setShadow(2, 2, "#333333", 2, false, true);
             game.destroy()
         }
-    }
-
-    getRightmostMountain() {
-        let rightmostMountain = -200;
-        this.mountainGroup.getChildren().forEach(function(mountain){
-            rightmostMountain = Math.max(rightmostMountain, mountain.x);
-        });
-        return rightmostMountain;
     }
 }
