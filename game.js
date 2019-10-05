@@ -4,7 +4,8 @@ let gameOptions = {
     // player gravity
     playerGravity: 200,
     mountainSpeed: 80,
-    lives: 1
+    lives: 2,
+    groundEventsCount: 2
 };
 
 window.onload = function() {
@@ -36,6 +37,9 @@ class preloadGame extends Phaser.Scene {
     preload(){
         this.load.image('sky', 'assets/sky.png');
         this.load.image('ground', 'assets/ground.png');
+        this.load.image('up', 'assets/jump.png');
+        this.load.image('right', 'assets/forward.png');
+        this.load.image('left', 'assets/backward.png');
         this.load.spritesheet("mountain", "assets/mountains.png", { frameWidth: 500, frameHeight: 500 });
         this.load.spritesheet("cloud", "assets/clouds.png", { frameWidth: 75, frameHeight: 50 });
         this.load.spritesheet("storm", "assets/storm.png", { frameWidth: 100, frameHeight: 100 });
@@ -167,6 +171,11 @@ class playGame extends Phaser.Scene{
             }
         });
 
+        this.createButtons();
+
+        this.meteorGroup = this.add.group();
+        this.movingGroup.push(this.meteorGroup);
+
         //TODO alien
         this.alienGroup = this.add.group();
         this.movingGroup.push(this.alienGroup);
@@ -177,83 +186,179 @@ class playGame extends Phaser.Scene{
         this.movingGroup.push(this.stormGroup);
         this.addStorm();
 
-        //TODO meteor
-        this.meteorGroup = this.add.group();
-        this.movingGroup.push(this.meteorGroup);
-        this.addMeteor();
-
         //TODO water
         this.waterGroup = this.add.group();
         this.movingGroup.push(this.waterGroup);
         this.addWater();
     }
 
+    createButtons() {
+        let up = this.add.image(1100, 600, 'up');
+        up.setScale(0.8);
+        up.setDepth(6);
+        up.setInteractive();
+        up.on('pointerover', () => this.jump());
+
+        let right = this.add.image(1200, 600, 'right');
+        right.setScale(0.8);
+        right.setDepth(6);
+        right.setInteractive({
+            // hitArea: shape,
+            hitAreaCallback: () => this.moveForward(),
+            pixelPerfect: false,
+            alphaTolerance: 1,
+            draggable: true,
+            dropZone: true,
+            useHandCursor: true
+        });
+        // right.on('pointerover', () => this.moveForward());
+
+        let left = this.add.image(1000, 600, 'left');
+        left.setScale(0.8);
+        left.setDepth(6);
+        left.setInteractive();
+        left.on('pointerover', () => this.moveBackward())
+    }
+
     update() {
-        if (this.cursors.right.isDown) {
+        if (this.scanButton.isDown) {
+        } else if (this.cursors.right.isDown) {
             this.moveForward();
         } else if (this.cursors.left.isDown) {
             this.moveBackward();
         } else {
+            this.player.setVelocityX(0);
             this.player.anims.play('stop');
         }
 
         if (this.cursors.up.isDown && this.player.body.touching.down) {
-           this.player.setVelocityY(-200);
+            this.jump();
         }
     }
 
-    moveForward() {
-        this.score += 0.1;
-        this.scoreText.text =`score: ${this.score.toFixed()}`;
-        this.player.anims.play('drive', true);
-        this.mountainGroup.getChildren().forEach(function (mountains) {
-            mountains.x += -1 - (mountains.depth / 5);
-        });
-        this.cloudGroup.getChildren().forEach(function (cloud) {
-            cloud.x += -0.3 - (cloud.depth / 5);
-        });
-        this.recyclingMountains();
-        this.recyclingClouds();
-        this.movingGroup.forEach(group => {
-            group.getChildren().forEach(item => {
-                item.x -= 2;
-            });
-        });
-        this.alienGroup.getChildren().forEach(alien => {
-            if ((alien.x - this.player.x <= 200) && !alien.anims.isPlaying) {
-                alien.anims.play('welcome');
-            }
-        });
+    jump() {
+        this.player.setVelocityY(-200);
     }
 
-    scanWater() {
-        if(this.scan.anims.isPlaying) {
-            this.waterGroup.getChildren().forEach(water => {
-                if (Math.abs(water.x - this.player.x) <= 50) {
-                    setTimeout(() => {
-                        this.waterGroup.killAndHide(water);
-                        this.waterGroup.remove(water);
-                        this.score += 10;
-                        this.scoreText.text = `score: ${this.score.toFixed()}`;
-                    }, 500);
+    moveForward() {
+        if (this.player.x < 300) {
+            this.player.setVelocityX(100);
+        } else {
+            this.player.setVelocityX(0);
+            this.score += 0.1;
+            this.scoreText.text = `score: ${this.score.toFixed()}`;
+            this.player.anims.play('drive', true);
+            this.mountainGroup.getChildren().forEach(function (mountains) {
+                mountains.x += -1 - (mountains.depth / 5);
+            });
+            this.cloudGroup.getChildren().forEach(function (cloud) {
+                cloud.x += -0.3 - (cloud.depth / 5);
+            });
+            this.recyclingMountains();
+            this.recyclingClouds();
+            this.recyclingElements();
+            this.movingGroup.forEach(group => {
+                group.getChildren().forEach(item => {
+                    item.x -= 2;
+                });
+            });
+            this.alienGroup.getChildren().forEach(alien => {
+                if ((alien.x - this.player.x <= 200) && !alien.anims.isPlaying) {
+                    alien.anims.play('welcome');
                 }
             });
         }
     }
 
-    moveBackward() {
+    recyclingElements() {
+        this.recyclingMeteors();
+        this.recyclingWater();
+        this.recyclingGroundEvents();
     }
 
-    addWater() {
-        let water = this.physics.add.sprite(700, 550, 'water');
+    recyclingGroundEvents() {
+        this.alienGroup.getChildren().forEach((alien) => {
+            if(alien.x < 0) {
+                this.alienGroup.killAndHide(alien);
+                this.alienGroup.remove(alien);
+                alien.destroy();
+            }
+        });
+        this.stormGroup.getChildren().forEach((storm) => {
+            if(storm.x < 0) {
+                this.alienGroup.killAndHide(storm);
+                this.alienGroup.remove(storm);
+                storm.destroy();
+            }
+        });
+        console.log("storms" + this.stormGroup.getChildren().length);
+        console.log("aliens" + this.alienGroup.getChildren().length);
+        if (this.stormGroup.getChildren().length + this.alienGroup.getChildren().length < gameOptions.groundEventsCount) {
+            let eventTypes = {
+                "alien": this.addAlien,
+                "storm": this.addStorm
+            };
+            let eventData = getGroundEvents();
+            eventTypes[eventData.type].bind(this)(eventData.distance);
+        }
+    }
+
+    recyclingWater() {
+        this.waterGroup.getChildren().forEach((water) => {
+            if(water.x < -water.displayWidth) {
+                let waterData = getWatter();
+                water.x = game.config.width + waterData.distance;
+                water.y = 500 + waterData.depth;
+                water.setFrame(Phaser.Math.Between(0, 3));
+                water.setDepth(5);
+            }
+        });
+        if ((this.waterGroup.getChildren().length === 0)) {
+            this.addWater(game.config.width);
+        }
+    }
+
+    recyclingMeteors() {
+        let minMeteors = 1 + Number.parseInt((this.score / 500).toFixed());
+        if (this.meteorGroup.getChildren().length < minMeteors) {
+            this.addMeteor();
+        }
+    }
+
+    scanWater() {
+        if(!this.scanButton.isDown) {
+            return;
+        }
+        this.waterGroup.getChildren().forEach(water => {
+            if (Math.abs(water.x - this.player.x) <= 50) {
+                setTimeout(() => {
+                    if (!this.scanButton.isDown) {
+                        return;
+                    }
+                    this.waterGroup.killAndHide(water);
+                    this.waterGroup.remove(water);
+                    this.score += 10;
+                    this.scoreText.text = `score: ${this.score.toFixed()}`;
+                }, 500 + (water.y - 550) * 10);
+            }
+        });
+    }
+
+    moveBackward() {
+        this.player.setVelocityX(-100);
+    }
+
+    addWater(initialDistance = 0) {
+        let waterData = getWatter();
+        let water = this.physics.add.sprite(initialDistance + waterData.distance, 500 + waterData.depth, 'water');
         water.setDepth(4);
         water.setScale(2);
         water.anims.play('flow');
         this.waterGroup.add(water);
     }
 
-    addAlien() {
-        let alien = this.physics.add.sprite(600, 490, 'alien');
+    addAlien(initialDistance = 0) {
+        let alien = this.physics.add.sprite(initialDistance + 600, 480, 'alien');
         alien.setDepth(4);
         alien.body.setGravityY(gameOptions.playerGravity);
         this.physics.add.collider(alien, this.platforms);
@@ -266,8 +371,8 @@ class playGame extends Phaser.Scene{
         this.alienGroup.add(alien);
     }
 
-    addStorm() {
-        let storm = this.physics.add.sprite(1000, 350, 'storm');
+    addStorm(initialDistance = 0) {
+        let storm = this.physics.add.sprite(initialDistance + 1000, 350, 'storm');
         storm.anims.play('storm');
         storm.setScale(0.5);
         storm.setDepth(4);
@@ -276,33 +381,42 @@ class playGame extends Phaser.Scene{
         this.stormGroup.add(storm);
 
         this.physics.add.collider(this.platforms, storm);
-        this.physics.add.collider(this.player, storm, () => this.roverHit());
+        this.physics.add.collider(this.player, storm, (r, s) => {
+            this.roverHit(s);
+        });
     }
 
     addMeteor() {
-        let meteor = this.physics.add.sprite(700, -100, 'meteor');
+        let meteorData = getMeteor();
+        let meteor = this.physics.add.sprite(meteorData.location, -100, 'meteor');
+        meteor.setCollideWorldBounds(true);
         meteor.anims.play('fall');
         meteor.setDepth(4);
-        meteor.setVelocityX(-100);
-        meteor.body.setGravityY(gameOptions.playerGravity);
+        meteor.setVelocityX(-meteorData.velocity);
+        meteor.body.setGravityY(meteorData.mass);
 
         this.meteorGroup.add(meteor);
-        this.physics.add.collider(this.player, meteor, () => {
-            meteor.anims.play('explode');
-            this.roverHit();
+        this.physics.add.collider(this.player, meteor, (r, m) => {
+            this.meteorExplode(meteor);
+            this.roverHit(m);
         });
         this.physics.add.collider(this.platforms, meteor, () => {
-            meteor.setVelocityX(0);
-            meteor.anims.play('explode');
-            setTimeout(() => {
-                this.meteorGroup.killAndHide(meteor);
-                this.meteorGroup.remove(meteor);
-            }, 100);
+            this.meteorExplode(meteor);
         });
     }
 
+    meteorExplode(meteor) {
+        meteor.setVelocityX(0);
+        meteor.anims.play('explode');
+        setTimeout(() => {
+            this.meteorGroup.killAndHide(meteor);
+            this.meteorGroup.remove(meteor);
+            meteor.destroy();
+        }, 100);
+    }
+
     addMountains() {
-        let rightmostMountain = this.getRightmostMountain();
+        let rightmostMountain = this.getRightmostElement(this.mountainGroup);
         if(rightmostMountain < game.config.width * 2){
             let mountain = this.physics.add.sprite(rightmostMountain + Phaser.Math.Between(100, 350), game.config.height - Phaser.Math.Between(0, 150), "mountain");
             mountain.setOrigin(0.5, 1);
@@ -318,7 +432,7 @@ class playGame extends Phaser.Scene{
     recyclingMountains() {
         this.mountainGroup.getChildren().forEach((mountain) => {
             if(mountain.x < - mountain.displayWidth) {
-                let rightmostMountain = this.getRightmostMountain();
+                let rightmostMountain = this.getRightmostElement(this.mountainGroup);
                 mountain.x = rightmostMountain + Phaser.Math.Between(100, 350);
                 mountain.y = game.config.height - Phaser.Math.Between(0, 150);
                 mountain.setFrame(Phaser.Math.Between(0, 3));
@@ -326,21 +440,21 @@ class playGame extends Phaser.Scene{
                     mountain.setDepth(1);
                 }
             }
-        }, this);
+        });
     }
 
-    getRightmostMountain() {
-        let rightmostMountain = -200;
-        this.mountainGroup.getChildren().forEach(function(mountain){
-            rightmostMountain = Math.max(rightmostMountain, mountain.x);
+    getRightmostElement(elementGroup) {
+        let rightmostElement = -200;
+        elementGroup.getChildren().forEach(function(element){
+            rightmostElement = Math.max(rightmostElement, element.x);
         });
-        return rightmostMountain;
+        return rightmostElement;
     }
 
     recyclingClouds() {
         this.cloudGroup.getChildren().forEach((cloud) => {
-            if(cloud.x < - cloud.displayWidth) {
-                let rightmostCloud = this.getRightmostCloud();
+            if(cloud.x < -cloud.displayWidth) {
+                let rightmostCloud = this.getRightmostElement(this.cloudGroup);
                 cloud.x = rightmostCloud + Phaser.Math.Between(100, 350);
                 cloud.y = game.config.height - Phaser.Math.Between(350, 650);
                 cloud.setFrame(Phaser.Math.Between(0, 3));
@@ -349,11 +463,11 @@ class playGame extends Phaser.Scene{
                     cloud.setDepth(1);
                 }
             }
-        }, this);
+        });
     }
 
     addClouds() {
-        let rightmostCloud = this.getRightmostCloud();
+        let rightmostCloud = this.getRightmostElement(this.cloudGroup);
         if(rightmostCloud < game.config.width * 2){
             let cloud = this.physics.add.sprite(rightmostCloud + Phaser.Math.Between(100, 350), game.config.height - Phaser.Math.Between(350, 650), "cloud");
             cloud.setOrigin(0.5, 1);
@@ -367,15 +481,11 @@ class playGame extends Phaser.Scene{
         }
     }
 
-    getRightmostCloud() {
-        let rightmostCloud = -200;
-        this.cloudGroup.getChildren().forEach(function(cloud) {
-            rightmostCloud = Math.max(rightmostCloud, cloud.x);
-        });
-        return rightmostCloud;
-    }
-
-    roverHit() {
+    roverHit(hitObject) {
+        if (hitObject.hit) {
+            return;
+        }
+        hitObject.hit = true;
         this.lives -= 1;
         this.livesText.text = `lives: ${this.lives}`;
         if (this.lives <= 0) {
