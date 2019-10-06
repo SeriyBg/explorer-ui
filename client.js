@@ -28,9 +28,20 @@ function getGroundEvents() {
     return items[Math.floor(Math.random()*items.length)];
 }
 
+function getPlayerName() {
+    return "BestPlayer";
+}
+
+function getLeaderBoard() {
+    return {
+        "Player1": 1500,
+        "Player2": 1256,
+        "Player3": 244,
+    };
+}
+
 function getRandomInt(min, max) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min)) + min;
-
 }

@@ -128,15 +128,17 @@ class playGame extends Phaser.Scene{
         super("PlayGame");
     }
     create(){
+        this.playerName = getPlayerName();
         this.score = 0.0;
         this.isOver = false;
         this.lives = gameOptions.lives;
         this.movingGroup = [];
-        this.scoreText = this.add.text(16, 16, `score: ${this.score}`, { fontSize: '32px', fill: '#000' });
-        this.scoreText.setDepth(10);
+        this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '32px', fill: '#000' })
+            .setDepth(10);
         this.livesText = this.add.text(1100, 16, `lives: ${this.lives}`, { fontSize: '32px', fill: '#000' });
         this.livesText.setDepth(10);
-
+        this.scoreText = this.add.text(16, 45, this.getLeaderBoard(), { fontSize: '32px', fill: '#000' })
+            .setDepth(10);
         this.sky = this.physics.add.staticGroup();
         this.sky.create(600, 400, 'sky').scaleX = 2;
         this.platforms = this.physics.add.staticGroup();
@@ -197,6 +199,28 @@ class playGame extends Phaser.Scene{
         }
     }
 
+    getLeaderBoard() {
+        let leaderBoard = getLeaderBoard();
+        let currentUserPrinted = false;
+        let text = '';
+        const printCurrentUser = () => {
+            text += `${this.playerName}: ${this.score.toFixed()}\n`;
+            currentUserPrinted = true;
+        };
+        Object.keys(leaderBoard).map(key => {
+            if ((leaderBoard[key] <= this.score || key === this.playerName) && !currentUserPrinted) {
+                printCurrentUser();
+            }
+            if (key !== this.playerName) {
+                text += `${key}: ${leaderBoard[key]}\n`;
+            }
+        });
+        if (!currentUserPrinted) {
+            printCurrentUser();
+        }
+        return text;
+    }
+
     createButtons() {
         this.input.addPointer(2);
         this.input.topOnly = true;
@@ -255,7 +279,7 @@ class playGame extends Phaser.Scene{
         } else {
             this.player.setVelocityX(0);
             this.score += 0.1;
-            this.scoreText.text = `score: ${this.score.toFixed()}`;
+            this.scoreText.text = this.getLeaderBoard();
             this.mountainGroup.getChildren().forEach(function (mountains) {
                 mountains.x += -1 - (mountains.depth / 5);
             });
@@ -344,7 +368,7 @@ class playGame extends Phaser.Scene{
                     this.waterGroup.killAndHide(water);
                     this.waterGroup.remove(water);
                     this.score += 20;
-                    this.scoreText.text = `score: ${this.score.toFixed()}`;
+                    this.scoreText.text = this.getLeaderBoard();
                 }, 500 + (water.y - 550) * 10);
             }
         });
@@ -370,7 +394,7 @@ class playGame extends Phaser.Scene{
         alien.body.setGravityY(gameOptions.playerGravity);
         this.physics.add.collider(alien, this.platforms);
         this.physics.add.collider(alien, this.player, () => {
-            this.score += 1;
+            this.score += 5;
             this.alienGroup.killAndHide(alien);
             this.alienGroup.remove(alien);
             alien.destroy();
@@ -507,7 +531,7 @@ class playGame extends Phaser.Scene{
     }
 
     restartButton() {
-        let restart = this.add.text(667, 425, 'restart', { fontSize: '64px', fill: '#e0e1c3' })
+        this.add.text(667, 425, 'restart', { fontSize: '64px', fill: '#e0e1c3' })
             .setDepth(100)
             .setInteractive()
             .on('pointerdown', () => location.reload() )
