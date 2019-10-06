@@ -5,7 +5,7 @@ let gameOptions = {
     playerGravity: 200,
     mountainSpeed: 80,
     lives: 2,
-    groundEventsCount: 2
+    groundEventsCount: 2,
 };
 
 window.onload = function() {
@@ -40,6 +40,7 @@ class preloadGame extends Phaser.Scene {
         this.load.image('up', 'assets/jump.png');
         this.load.image('right', 'assets/forward.png');
         this.load.image('left', 'assets/backward.png');
+        this.load.image('space', 'assets/scan_button.png');
         this.load.spritesheet("mountain", "assets/mountains.png", { frameWidth: 500, frameHeight: 500 });
         this.load.spritesheet("cloud", "assets/clouds.png", { frameWidth: 75, frameHeight: 50 });
         this.load.spritesheet("storm", "assets/storm.png", { frameWidth: 100, frameHeight: 100 });
@@ -128,6 +129,7 @@ class playGame extends Phaser.Scene{
     }
     create(){
         this.score = 0.0;
+        this.isOver = false;
         this.lives = gameOptions.lives;
         this.movingGroup = [];
         this.scoreText = this.add.text(16, 16, `score: ${this.score}`, { fontSize: '32px', fill: '#000' });
@@ -155,72 +157,78 @@ class playGame extends Phaser.Scene{
         this.player.setCollideWorldBounds(true);
         this.player.body.setGravityY(gameOptions.playerGravity);
         this.physics.add.collider(this.player, this.platforms);
-        this.cursors = this.input.keyboard.createCursorKeys();
         this.scan = null;
-        this.scanButton = this.cursors.space;
 
-        this.scanButton.on('down', () => {
-            this.scan = this.physics.add.sprite(this.player.x, this.player.y + 50, 'scan');
-            this.scan.anims.play('scan');
-            this.scan.setDepth(5);
-            this.scanWater();
-        });
-        this.scanButton.on('up', () => {
-            if (this.scan !== null) {
-                this.scan.destroy();
-            }
-        });
-
-        this.createButtons();
+        if (!this.sys.game.device.input.touch) {
+            this.cursors = this.input.keyboard.createCursorKeys();
+            this.scanButton = this.cursors.space;
+            this.scanButton.on('down', () => this.startScan());
+            this.scanButton.on('up', () => this.stopScan());
+        } else {
+            this.createButtons();
+        }
 
         this.meteorGroup = this.add.group();
         this.movingGroup.push(this.meteorGroup);
 
-        //TODO alien
         this.alienGroup = this.add.group();
         this.movingGroup.push(this.alienGroup);
         this.addAlien();
 
-        //TODO storm
         this.stormGroup = this.add.group();
         this.movingGroup.push(this.stormGroup);
         this.addStorm();
 
-        //TODO water
         this.waterGroup = this.add.group();
         this.movingGroup.push(this.waterGroup);
         this.addWater();
     }
 
+    startScan() {
+        this.scan = this.physics.add.sprite(this.player.x, this.player.y + 50, 'scan');
+        this.scan.anims.play('scan');
+        this.scan.setDepth(5);
+        this.scanWater();
+    }
+
+    stopScan() {
+        if (this.scan !== null) {
+            this.scan.destroy();
+        }
+    }
+
     createButtons() {
-        let up = this.add.image(1100, 600, 'up');
-        up.setScale(0.8);
-        up.setDepth(6);
-        up.setInteractive();
-        up.on('pointerover', () => this.jump());
+        this.input.addPointer(2);
+        this.input.topOnly = true;
+        this.cursors = {'up': {}, 'left': {}, 'right': {}, 'down': {}, 'space': {}};
 
-        let right = this.add.image(1200, 600, 'right');
-        right.setScale(0.8);
-        right.setDepth(6);
-        right.setInteractive({
-            // hitArea: shape,
-            hitAreaCallback: () => this.moveForward(),
-            pixelPerfect: false,
-            alphaTolerance: 1,
-            draggable: true,
-            dropZone: true,
-            useHandCursor: true
-        });
-        // right.on('pointerover', () => this.moveForward());
+        const pointerDown = key => this.cursors[key].isDown = true;
+        const pointerUp = key => this.cursors[key].isDown = false;
 
-        let left = this.add.image(1000, 600, 'left');
-        left.setScale(0.8);
-        left.setDepth(6);
-        left.setInteractive();
-        left.on('pointerover', () => this.moveBackward())
+        const createBtn = (key, x, y) => {
+            let btn = this.add.image(x, y, key);
+            btn.setDepth(6);
+            btn.setInteractive();
+            btn.on('pointerdown', () => pointerDown(key));
+            btn.on('pointerup', () => pointerUp(key));
+        };
+
+        createBtn('up', 100, 600);
+        createBtn('right', 1250, 600);
+        createBtn('left', 1050, 600);
+        createBtn('space', 200, 600);
+        let space = this.add.image(200, 600, 'space');
+        space.setDepth(6);
+        space.setInteractive();
+        space.on('pointerdown', () => {pointerDown('space'); this.startScan()});
+        space.on('pointerup', () => {pointerUp('space'); this.stopScan();});
+        this.scanButton = this.cursors.space;
     }
 
     update() {
+        if (this.isOver) {
+            return;
+        }
         if (this.scanButton.isDown) {
         } else if (this.cursors.right.isDown) {
             this.moveForward();
@@ -241,13 +249,13 @@ class playGame extends Phaser.Scene{
     }
 
     moveForward() {
+        this.player.anims.play('drive', true);
         if (this.player.x < 300) {
             this.player.setVelocityX(100);
         } else {
             this.player.setVelocityX(0);
             this.score += 0.1;
             this.scoreText.text = `score: ${this.score.toFixed()}`;
-            this.player.anims.play('drive', true);
             this.mountainGroup.getChildren().forEach(function (mountains) {
                 mountains.x += -1 - (mountains.depth / 5);
             });
@@ -291,8 +299,6 @@ class playGame extends Phaser.Scene{
                 storm.destroy();
             }
         });
-        console.log("storms" + this.stormGroup.getChildren().length);
-        console.log("aliens" + this.alienGroup.getChildren().length);
         if (this.stormGroup.getChildren().length + this.alienGroup.getChildren().length < gameOptions.groundEventsCount) {
             let eventTypes = {
                 "alien": this.addAlien,
@@ -337,7 +343,7 @@ class playGame extends Phaser.Scene{
                     }
                     this.waterGroup.killAndHide(water);
                     this.waterGroup.remove(water);
-                    this.score += 10;
+                    this.score += 20;
                     this.scoreText.text = `score: ${this.score.toFixed()}`;
                 }, 500 + (water.y - 550) * 10);
             }
@@ -345,6 +351,7 @@ class playGame extends Phaser.Scene{
     }
 
     moveBackward() {
+        this.player.anims.play('drive', true);
         this.player.setVelocityX(-100);
     }
 
@@ -492,7 +499,17 @@ class playGame extends Phaser.Scene{
             let text = this.add.text(667, 325, 'Game Over', { fontSize: '64px', fill: '#e0e1c3' });
             text.setDepth(100);
             text.setShadow(2, 2, "#333333", 2, false, true);
-            game.destroy()
+            this.restartButton();
+
+            this.isOver = true;
+            game.scene.stop();
         }
+    }
+
+    restartButton() {
+        let restart = this.add.text(667, 425, 'restart', { fontSize: '64px', fill: '#e0e1c3' })
+            .setDepth(100)
+            .setInteractive()
+            .on('pointerdown', () => location.reload() )
     }
 }
