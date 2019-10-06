@@ -4,7 +4,7 @@ let gameOptions = {
     // player gravity
     playerGravity: 200,
     mountainSpeed: 80,
-    lives: 2,
+    lives: 3,
     groundEventsCount: 2,
 };
 
