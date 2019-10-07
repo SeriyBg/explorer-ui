@@ -127,14 +127,16 @@ class playGame extends Phaser.Scene{
     constructor(){
         super("PlayGame");
     }
-    create(){
-        this.playerName = getPlayerName();
+    async create(){
+        this.playerName = await getPlayerName();
+        this.leaderBoard = await getLeaderboard();
+        this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '32px', fill: '#000' })
+            .setDepth(10);
         this.score = 0.0;
         this.isOver = false;
         this.lives = gameOptions.lives;
         this.movingGroup = [];
-        this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '32px', fill: '#000' })
-            .setDepth(10);
+
         this.livesText = this.add.text(1100, 16, `lives: ${this.lives}`, { fontSize: '32px', fill: '#000' });
         this.livesText.setDepth(10);
         this.scoreText = this.add.text(16, 45, this.getLeaderBoard(), { fontSize: '32px', fill: '#000' })
@@ -184,13 +186,23 @@ class playGame extends Phaser.Scene{
         this.waterGroup = this.add.group();
         this.movingGroup.push(this.waterGroup);
         this.addWater();
+
+        setInterval(() => this.updateLeaderBoard().then(() => console.log("Leader board refreshed")), 5000);
+    }
+
+    async updateLeaderBoard() {
+        if (!this.isOver) {
+            updateScore(this.playerName, this.score).then(() => console.log("Updated"));
+            getLeaderboard()
+                .then(res => this.leaderBoard = res);
+        }
     }
 
     startScan() {
         this.scan = this.physics.add.sprite(this.player.x, this.player.y + 50, 'scan');
         this.scan.anims.play('scan');
         this.scan.setDepth(5);
-        this.scanWater();
+        this.scanWater().then(() => {});
     }
 
     stopScan() {
@@ -200,19 +212,18 @@ class playGame extends Phaser.Scene{
     }
 
     getLeaderBoard() {
-        let leaderBoard = getLeaderBoard();
         let currentUserPrinted = false;
         let text = '';
         const printCurrentUser = () => {
             text += `${this.playerName}: ${this.score.toFixed()}\n`;
             currentUserPrinted = true;
         };
-        Object.keys(leaderBoard).map(key => {
-            if ((leaderBoard[key] <= this.score || key === this.playerName) && !currentUserPrinted) {
+        Object.keys(this.leaderBoard).map(key => {
+            if ((this.leaderBoard[key] <= this.score || key === this.playerName) && !currentUserPrinted) {
                 printCurrentUser();
             }
             if (key !== this.playerName) {
-                text += `${key}: ${leaderBoard[key]}\n`;
+                text += `${key}: ${this.leaderBoard[key]}\n`;
             }
         });
         if (!currentUserPrinted) {
@@ -249,12 +260,11 @@ class playGame extends Phaser.Scene{
         this.scanButton = this.cursors.space;
     }
 
-    update() {
-        if (this.isOver) {
+    async update() {
+        if (this.isOver || this.scanButton.isDown) {
             return;
         }
-        if (this.scanButton.isDown) {
-        } else if (this.cursors.right.isDown) {
+        if (this.cursors.right.isDown) {
             this.moveForward();
         } else if (this.cursors.left.isDown) {
             this.moveBackward();
@@ -272,7 +282,7 @@ class playGame extends Phaser.Scene{
         this.player.setVelocityY(-200);
     }
 
-    moveForward() {
+    async moveForward() {
         this.player.anims.play('drive', true);
         if (this.player.x < 300) {
             this.player.setVelocityX(100);
@@ -355,23 +365,25 @@ class playGame extends Phaser.Scene{
         }
     }
 
-    scanWater() {
+    async scanWater() {
         if(!this.scanButton.isDown) {
             return;
         }
         this.waterGroup.getChildren().forEach(water => {
             if (Math.abs(water.x - this.player.x) <= 50) {
-                setTimeout(() => {
-                    if (!this.scanButton.isDown) {
-                        return;
-                    }
-                    this.waterGroup.killAndHide(water);
-                    this.waterGroup.remove(water);
-                    this.score += 20;
-                    this.scoreText.text = this.getLeaderBoard();
-                }, 500 + (water.y - 550) * 10);
+                setTimeout(() => this.finishWaterScan(water).then(() => {}), 500 + (water.y - 550) * 10);
             }
         });
+    }
+
+    async finishWaterScan(water) {
+        if (!this.scanButton.isDown) {
+            return;
+        }
+        this.waterGroup.killAndHide(water);
+        this.waterGroup.remove(water);
+        this.score += 20;
+        this.scoreText.text = this.getLeaderBoard();
     }
 
     moveBackward() {
@@ -524,6 +536,7 @@ class playGame extends Phaser.Scene{
             text.setDepth(100);
             text.setShadow(2, 2, "#333333", 2, false, true);
             this.restartButton();
+            updateScore(this.playerName, this.score).then(() => console.log("Updated"));
 
             this.isOver = true;
             game.scene.stop();

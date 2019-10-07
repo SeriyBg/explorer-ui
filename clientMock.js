@@ -1,4 +1,10 @@
-const host = "http://localhost:8080";
+const host = "http://localhost:8080/";
+
+let leaderBoard = {
+    "Player1": 701,
+    "Player2": 243,
+    "Player3": 114,
+};
 
 function getMeteor() {
     return {
@@ -29,25 +35,22 @@ function getGroundEvents() {
     return items[Math.floor(Math.random()*items.length)];
 }
 
-function updateScore(username, score) {
-    const axiosOptions = {
-        method: 'POST',
-        url: host + "/score/" + score.toFixed(),
-        headers: {
-            'user': username
-        },
-    };
-    return axios(axiosOptions);
+async function updateScore(username, score) {
+    return new Promise((resolve) => {
+        leaderBoard["Player1"] = leaderBoard["Player1"] + 1;
+        leaderBoard[username] = score;
+        resolve();
+    });
 }
 
 async function getPlayerName() {
-    let response = await axios.get(host + "/name");
-    return response.data;
+    const name = "Best Player";
+    leaderBoard[name] = 0;
+    return Promise.resolve(name);
 }
 
 async function getLeaderboard() {
-    let response = await axios.get(host + "/leaderboard");
-    return response.data;
+    return Promise.resolve(leaderBoard);
 }
 
 function getRandomInt(min, max) {
