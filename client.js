@@ -1,18 +1,24 @@
-const host = "http://localhost:8080";
+const meteorHost = "http://localhost:8080";
+const nameHost = "http://localhost:8081";
+const groundEventsHost = "http://localhost:8082";
 
-function getMeteor() {
-    return {
-        location: getRandomInt(500, 1300),
-        mass: getRandomInt(100, 400),
-        velocity: getRandomInt(100, 300)
-    }
+async function getMeteor(username) {
+    const axiosOptions = {
+        method: 'GET',
+        url: meteorHost + "/meteor",
+        headers: {
+            'user': username
+        },
+    };
+    let response = await axios(axiosOptions);
+    return response.data;
 }
 
 function getWatter() {
-    return {
+    return Promise.resolve({
         distance: getRandomInt(100, 1300),
         depth: getRandomInt(50, 200)
-    }
+    });
 }
 
 function getGroundEvents() {
@@ -26,13 +32,13 @@ function getGroundEvents() {
             distance: getRandomInt(100, 500)
         }
     ];
-    return items[Math.floor(Math.random()*items.length)];
+    return Promise.resolve(items[Math.floor(Math.random()*items.length)]);
 }
 
 function updateScore(username, score) {
     const axiosOptions = {
         method: 'POST',
-        url: host + "/score/" + score.toFixed(),
+        url: nameHost + "/score/" + score.toFixed(),
         headers: {
             'user': username
         },
@@ -41,12 +47,12 @@ function updateScore(username, score) {
 }
 
 async function getPlayerName() {
-    let response = await axios.get(host + "/name");
+    let response = await axios.get(nameHost + "/name");
     return response.data;
 }
 
 async function getLeaderboard() {
-    let response = await axios.get(host + "/leaderboard");
+    let response = await axios.get(nameHost + "/leaderboard?top=" + 3);
     return response.data;
 }
 

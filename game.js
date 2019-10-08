@@ -338,19 +338,19 @@ class playGame extends Phaser.Scene{
                 "alien": this.addAlien,
                 "storm": this.addStorm
             };
-            let eventData = getGroundEvents();
-            eventTypes[eventData.type].bind(this)(eventData.distance);
+            getGroundEvents().then(eventData => eventTypes[eventData.type].bind(this)(eventData.distance));
         }
     }
 
     recyclingWater() {
         this.waterGroup.getChildren().forEach((water) => {
             if(water.x < -water.displayWidth) {
-                let waterData = getWatter();
-                water.x = game.config.width + waterData.distance;
-                water.y = 500 + waterData.depth;
-                water.setFrame(Phaser.Math.Between(0, 3));
-                water.setDepth(5);
+                getWatter().then(waterData => {
+                    water.x = game.config.width + waterData.distance;
+                    water.y = 500 + waterData.depth;
+                    water.setFrame(Phaser.Math.Between(0, 3));
+                    water.setDepth(5);
+                });
             }
         });
         if ((this.waterGroup.getChildren().length === 0)) {
@@ -392,12 +392,13 @@ class playGame extends Phaser.Scene{
     }
 
     addWater(initialDistance = 0) {
-        let waterData = getWatter();
-        let water = this.physics.add.sprite(initialDistance + waterData.distance, 500 + waterData.depth, 'water');
-        water.setDepth(4);
-        water.setScale(2);
-        water.anims.play('flow');
-        this.waterGroup.add(water);
+        getWatter().then(waterData => {
+            let water = this.physics.add.sprite(initialDistance + waterData.distance, 500 + waterData.depth, 'water');
+            water.setDepth(4);
+            water.setScale(2);
+            water.anims.play('flow');
+            this.waterGroup.add(water);
+        });
     }
 
     addAlien(initialDistance = 0) {
@@ -430,21 +431,22 @@ class playGame extends Phaser.Scene{
     }
 
     addMeteor() {
-        let meteorData = getMeteor();
-        let meteor = this.physics.add.sprite(meteorData.location, -100, 'meteor');
-        meteor.setCollideWorldBounds(true);
-        meteor.anims.play('fall');
-        meteor.setDepth(4);
-        meteor.setVelocityX(-meteorData.velocity);
-        meteor.body.setGravityY(meteorData.mass);
+        getMeteor(this.playerName).then(meteorData => {
+            let meteor = this.physics.add.sprite(meteorData.location, -100, 'meteor');
+            meteor.setCollideWorldBounds(true);
+            meteor.anims.play('fall');
+            meteor.setDepth(4);
+            meteor.setVelocityX(-meteorData.velocity);
+            meteor.body.setGravityY(meteorData.mass);
 
-        this.meteorGroup.add(meteor);
-        this.physics.add.collider(this.player, meteor, (r, m) => {
-            this.meteorExplode(meteor);
-            this.roverHit(m);
-        });
-        this.physics.add.collider(this.platforms, meteor, () => {
-            this.meteorExplode(meteor);
+            this.meteorGroup.add(meteor);
+            this.physics.add.collider(this.player, meteor, (r, m) => {
+                this.meteorExplode(meteor);
+                this.roverHit(m);
+            });
+            this.physics.add.collider(this.platforms, meteor, () => {
+                this.meteorExplode(meteor);
+            });
         });
     }
 

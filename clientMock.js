@@ -1,5 +1,3 @@
-const host = "http://localhost:8080/";
-
 let leaderBoard = {
     "Player1": 701,
     "Player2": 243,
@@ -7,18 +5,18 @@ let leaderBoard = {
 };
 
 function getMeteor() {
-    return {
+    return Promise.resolve({
         location: getRandomInt(500, 1300),
         mass: getRandomInt(100, 400),
         velocity: getRandomInt(100, 300)
-    }
+    })
 }
 
 function getWatter() {
-    return {
+    return Promise.resolve({
         distance: getRandomInt(100, 1300),
         depth: getRandomInt(50, 200)
-    }
+    });
 }
 
 function getGroundEvents() {
@@ -32,7 +30,7 @@ function getGroundEvents() {
             distance: getRandomInt(100, 500)
         }
     ];
-    return items[Math.floor(Math.random()*items.length)];
+    return Promise.resolve(items[Math.floor(Math.random()*items.length)]);
 }
 
 async function updateScore(username, score) {
