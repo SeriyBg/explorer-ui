@@ -20,6 +20,10 @@ function getWatter() {
 }
 
 function getGroundEvents() {
+    return Promise.resolve([randomGroundEvent(), randomGroundEvent()]);
+}
+
+function randomGroundEvent() {
     let items = [
         {
             type: "alien",
@@ -30,7 +34,7 @@ function getGroundEvents() {
             distance: getRandomInt(100, 500)
         }
     ];
-    return Promise.resolve(items[Math.floor(Math.random()*items.length)]);
+    return items[Math.floor(Math.random()*items.length)]
 }
 
 async function updateScore(username, score) {

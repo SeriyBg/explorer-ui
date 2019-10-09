@@ -1,0 +1,47 @@
+##################################################################################################
+# Coffee service
+##################################################################################################
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: explorer-ui
+  labels:
+    app: explorer-ui
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: explorer-ui
+        version: "1.0"
+        serving: "true"
+    spec:
+      containers:
+        - name: explorer-ui
+          image: sbishyr/explorer-ui:0.4
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+  selector:
+    matchLabels:
+      app: explorer-ui
+      version: "1.0"
+      serving: "true"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: explorer-ui
+  labels:
+    app: explorer-ui
+spec:
+  type: NodePort
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    app: explorer-ui
+    serving: "true"

@@ -338,14 +338,16 @@ class playGame extends Phaser.Scene{
                 "alien": this.addAlien,
                 "storm": this.addStorm
             };
-            getGroundEvents().then(eventData => eventTypes[eventData.type].bind(this)(eventData.distance));
+            getGroundEvents(this.playerName).then(eventsData => {
+                eventsData.forEach(eventData => eventTypes[eventData.type].bind(this)(eventData.distance));
+            });
         }
     }
 
     recyclingWater() {
         this.waterGroup.getChildren().forEach((water) => {
             if(water.x < -water.displayWidth) {
-                getWatter().then(waterData => {
+                getWatter(this.playerName).then(waterData => {
                     water.x = game.config.width + waterData.distance;
                     water.y = 500 + waterData.depth;
                     water.setFrame(Phaser.Math.Between(0, 3));

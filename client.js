@@ -1,11 +1,11 @@
-const meteorHost = "http://localhost:8080";
-const nameHost = "http://localhost:8081";
-const groundEventsHost = "http://localhost:8082";
+const eventHost = "";//"http://localhost:8080";
+const nameHost = "";//"http://localhost:8081";
+const groundEventsHost = "";//"http://localhost:8082";
 
 async function getMeteor(username) {
     const axiosOptions = {
         method: 'GET',
-        url: meteorHost + "/meteor",
+        url: eventHost + "/event/meteor",
         headers: {
             'user': username
         },
@@ -14,31 +14,34 @@ async function getMeteor(username) {
     return response.data;
 }
 
-function getWatter() {
-    return Promise.resolve({
-        distance: getRandomInt(100, 1300),
-        depth: getRandomInt(50, 200)
-    });
+async function getWatter(username) {
+    const axiosOptions = {
+        method: 'GET',
+        url: eventHost + "/event/water",
+        headers: {
+            'user': username
+        },
+    };
+    let response = await axios(axiosOptions);
+    return response.data;
 }
 
-function getGroundEvents() {
-    let items = [
-        {
-            type: "alien",
-            distance: getRandomInt(100, 500)
+async function getGroundEvents(username) {
+    const axiosOptions = {
+        method: 'GET',
+        url: groundEventsHost + "/groundevent/2",
+        headers: {
+            'user': username
         },
-        {
-            type: "storm",
-            distance: getRandomInt(100, 500)
-        }
-    ];
-    return Promise.resolve(items[Math.floor(Math.random()*items.length)]);
+    };
+    let response = await axios(axiosOptions);
+    return response.data
 }
 
 function updateScore(username, score) {
     const axiosOptions = {
         method: 'POST',
-        url: nameHost + "/score/" + score.toFixed(),
+        url: nameHost + "/player/score/" + score.toFixed(),
         headers: {
             'user': username
         },
@@ -47,17 +50,12 @@ function updateScore(username, score) {
 }
 
 async function getPlayerName() {
-    let response = await axios.get(nameHost + "/name");
+    let response = await axios.get(nameHost + "/player/name");
     return response.data;
 }
 
 async function getLeaderboard() {
-    let response = await axios.get(nameHost + "/leaderboard?top=" + 3);
+    let response = await axios.get(nameHost + "/player/leaderboard?top=" + 3);
     return response.data;
 }
 
-function getRandomInt(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min)) + min;
-}
