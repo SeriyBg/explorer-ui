@@ -128,8 +128,12 @@ class playGame extends Phaser.Scene{
         super("PlayGame");
     }
     async create(){
+        this.requests = {};
         this.playerName = await getPlayerName();
-        this.leaderBoard = await getLeaderboard();
+        this.leaderBoard = {};
+        getLeaderboard()
+            .then(data => this.leaderBoard = data)
+            .catch(() => this.leaderBoard = {});
         this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '32px', fill: '#000' })
             .setDepth(10);
         this.score = 0.0;
@@ -177,11 +181,10 @@ class playGame extends Phaser.Scene{
 
         this.alienGroup = this.add.group();
         this.movingGroup.push(this.alienGroup);
-        this.addAlien();
 
         this.stormGroup = this.add.group();
         this.movingGroup.push(this.stormGroup);
-        this.addStorm();
+        this.generateGroundEvents();
 
         this.waterGroup = this.add.group();
         this.movingGroup.push(this.waterGroup);
@@ -194,7 +197,8 @@ class playGame extends Phaser.Scene{
         if (!this.isOver) {
             updateScore(this.playerName, this.score).then(() => console.log("Updated"));
             getLeaderboard()
-                .then(res => this.leaderBoard = res);
+                .then(res => this.leaderBoard = res)
+                .catch(() => this.leaderBoard = {});
         }
     }
 
@@ -214,6 +218,9 @@ class playGame extends Phaser.Scene{
     getLeaderBoard() {
         let currentUserPrinted = false;
         let text = '';
+        if (Object.keys(this.leaderBoard).length === 0) {
+            return text;
+        }
         const printCurrentUser = () => {
             text += `${this.playerName}: ${this.score.toFixed()}\n`;
             currentUserPrinted = true;
@@ -334,14 +341,22 @@ class playGame extends Phaser.Scene{
             }
         });
         if (this.stormGroup.getChildren().length + this.alienGroup.getChildren().length < gameOptions.groundEventsCount) {
-            let eventTypes = {
-                "alien": this.addAlien,
-                "storm": this.addStorm
-            };
-            getGroundEvents(this.playerName).then(eventsData => {
-                eventsData.forEach(eventData => eventTypes[eventData.type].bind(this)(eventData.distance));
-            });
+            this.generateGroundEvents();
         }
+    }
+
+    generateGroundEvents() {
+        if(this.requests.groundEvents) {
+            return;
+        }
+        this.requests.groundEvents = true;
+        let eventTypes = {
+            "alien": this.addAlien,
+            "storm": this.addStorm
+        };
+        getGroundEvents(this.playerName).then(eventsData => {
+            eventsData.forEach(eventData => eventTypes[eventData.type].bind(this)(eventData.distance));
+        }).finally(() => this.requests.groundEvents = false);
     }
 
     recyclingWater() {
@@ -394,13 +409,17 @@ class playGame extends Phaser.Scene{
     }
 
     addWater(initialDistance = 0) {
+        if(this.requests.water) {
+            return;
+        }
+        this.requests.water = true;
         getWatter().then(waterData => {
             let water = this.physics.add.sprite(initialDistance + waterData.distance, 500 + waterData.depth, 'water');
             water.setDepth(4);
             water.setScale(2);
             water.anims.play('flow');
             this.waterGroup.add(water);
-        });
+        }).finally(() => this.requests.water = false);
     }
 
     addAlien(initialDistance = 0) {
@@ -433,6 +452,10 @@ class playGame extends Phaser.Scene{
     }
 
     addMeteor() {
+        if(this.requests.meteor) {
+            return;
+        }
+        this.requests.meteor = true;
         getMeteor(this.playerName).then(meteorData => {
             let meteor = this.physics.add.sprite(meteorData.location, -100, 'meteor');
             meteor.setCollideWorldBounds(true);
@@ -449,7 +472,7 @@ class playGame extends Phaser.Scene{
             this.physics.add.collider(this.platforms, meteor, () => {
                 this.meteorExplode(meteor);
             });
-        });
+        }).finally(() => this.requests.meteor = false);
     }
 
     meteorExplode(meteor) {

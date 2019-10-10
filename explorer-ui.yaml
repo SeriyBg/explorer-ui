@@ -8,7 +8,7 @@ metadata:
   labels:
     app: explorer-ui
 spec:
-  replicas: 2
+  replicas: 1
   template:
     metadata:
       labels:
@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: explorer-ui
-          image: sbishyr/explorer-ui:0.4
+          image: sbishyr/explorer-ui:1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 80
