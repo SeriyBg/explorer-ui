@@ -8,7 +8,7 @@ let gameOptions = {
     groundEventsCount: 2,
 };
 
-window.onload = function() {
+function startGame() {
     let gameConfig = {
         type: Phaser.AUTO,
         scale: {
@@ -27,7 +27,9 @@ window.onload = function() {
     };
     game = new Phaser.Game(gameConfig);
     window.focus();
-};
+}
+
+window.onload = startGame;
 
 class preloadGame extends Phaser.Scene {
     constructor() {
@@ -131,20 +133,21 @@ class playGame extends Phaser.Scene{
         this.requests = {};
         this.playerName = await getPlayerName();
         this.leaderBoard = {};
-        getLeaderboard()
-            .then(data => this.leaderBoard = data)
-            .catch(() => this.leaderBoard = {});
-        this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '32px', fill: '#000' })
+        this.add.text(16, 16, `Your are: ${this.playerName}`, { fontSize: '30px', fill: '#000' })
             .setDepth(10);
         this.score = 0.0;
         this.isOver = false;
         this.lives = gameOptions.lives;
         this.movingGroup = [];
 
-        this.livesText = this.add.text(1100, 16, `lives: ${this.lives}`, { fontSize: '32px', fill: '#000' });
+        this.livesText = this.add.text(1100, 16, `lives: ${this.lives}`, { fontSize: '30px', fill: '#000' });
         this.livesText.setDepth(10);
-        this.scoreText = this.add.text(16, 45, this.getLeaderBoard(), { fontSize: '32px', fill: '#000' })
+        this.scoreText = this.add.text(16, 45, this.getLeaderBoard(), { fontSize: '30px', fill: '#000' })
             .setDepth(10);
+        getLeaderboard()
+            .then(data => this.leaderBoard = data)
+            .then(() => this.scoreText.text = this.getLeaderBoard())
+            .catch(() => this.leaderBoard = {});
         this.sky = this.physics.add.staticGroup();
         this.sky.create(600, 400, 'sky').scaleX = 2;
         this.platforms = this.physics.add.staticGroup();
@@ -190,7 +193,7 @@ class playGame extends Phaser.Scene{
         this.movingGroup.push(this.waterGroup);
         this.addWater();
 
-        setInterval(() => this.updateLeaderBoard().then(() => console.log("Leader board refreshed")), 5000);
+        setInterval(() => this.updateLeaderBoard().then(() => this.scoreText.text = this.getLeaderBoard()), 5000);
     }
 
     async updateLeaderBoard() {
@@ -574,6 +577,6 @@ class playGame extends Phaser.Scene{
         this.add.text(667, 425, 'restart', { fontSize: '64px', fill: '#e0e1c3' })
             .setDepth(100)
             .setInteractive()
-            .on('pointerdown', () => location.reload() )
+            .on('pointerdown', () => this.scene.start("PreloadGame") )
     }
 }

@@ -7,8 +7,8 @@ let leaderBoard = {
 function getMeteor() {
     return Promise.resolve({
         location: getRandomInt(500, 1300),
-        mass: getRandomInt(100, 400),
-        velocity: getRandomInt(100, 300)
+        mass: 20000,
+        velocity: 2000
     })
 }
 
@@ -46,6 +46,7 @@ async function updateScore(username, score) {
 }
 
 async function getPlayerName() {
+    console.log("Getting player name...");
     const name = "Best Player";
     leaderBoard[name] = 0;
     return Promise.resolve(name);
