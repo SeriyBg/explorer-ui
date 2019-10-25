@@ -577,6 +577,10 @@ class playGame extends Phaser.Scene{
         this.add.text(667, 425, 'restart', { fontSize: '64px', fill: '#e0e1c3' })
             .setDepth(100)
             .setInteractive()
-            .on('pointerdown', () => this.scene.start("PreloadGame") )
+            .on('pointerdown', () => {
+                this.scanButton.off("down");
+                this.scanButton.off("up");
+                this.scene.start("PreloadGame")
+            })
     }
 }
