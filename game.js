@@ -578,8 +578,10 @@ class playGame extends Phaser.Scene{
             .setDepth(100)
             .setInteractive()
             .on('pointerdown', () => {
-                this.scanButton.off("down");
-                this.scanButton.off("up");
+                if (!this.sys.game.device.input.touch) {
+                    this.scanButton.off("down");
+                    this.scanButton.off("up");
+                }
                 this.scene.start("PreloadGame")
             })
     }
