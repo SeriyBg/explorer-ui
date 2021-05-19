@@ -225,7 +225,7 @@ class playGame extends Phaser.Scene{
             return text;
         }
         const printCurrentUser = () => {
-            text += `${this.playerName}: ${this.score.toFixed()}\n`;
+            text += `> ${this.playerName}: ${this.score.toFixed()}\n`;
             currentUserPrinted = true;
         };
         Object.keys(this.leaderBoard).map(key => {
